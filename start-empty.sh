@@ -6,11 +6,9 @@ DB_USER="myuser"
 DB_NAME="mydatabase"
 VOLUME_NAME="postgre-db-cesizen_postgres-data"
 
-echo "Stopping database..."
-docker compose down
+echo "Stopping database and dropping volume..."
+docker compose down -v
 
-echo "Removing data volume..."
-docker volume rm "$VOLUME_NAME" 2>/dev/null || echo "Volume not found or already removed, continuing."
 
 echo "Starting fresh database..."
 docker compose up -d
