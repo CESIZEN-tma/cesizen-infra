@@ -3,7 +3,7 @@
 
 DB_CONTAINER="postgres-db"
 DB_USER="myuser"
-DB_NAME="mydatabase"
+DB_NAME="cesizen"
 SEED_FILE="$(dirname "$0")/seed.sql"
 
 echo "Starting database..."

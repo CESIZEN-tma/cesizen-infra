@@ -3,7 +3,7 @@
 
 DB_CONTAINER="postgres-db"
 DB_USER="myuser"
-DB_NAME="mydatabase"
+DB_NAME="cesizen"
 VOLUME_NAME="postgre-db-cesizen_postgres-data"
 
 echo "Stopping database and dropping volume..."
