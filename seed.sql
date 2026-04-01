@@ -9,7 +9,13 @@
 
 DO $$
 DECLARE
-    v_admin_id UUID;
+    v_admin_id            UUID;
+    v_admin_email         TEXT;
+    v_admin_hash          TEXT;
+    v_admin_first_name    TEXT;
+    v_admin_last_name     TEXT;
+    v_admin_member_since  TIMESTAMPTZ;
+    v_admin_creation_time TIMESTAMPTZ;
 
     -- ── Tags ──────────────────────────────────────────────────────────────
     tag_stress        UUID := gen_random_uuid();
@@ -54,10 +60,11 @@ DECLARE
     m_legal      UUID := gen_random_uuid();
 
     -- ── Sous-menus → Santé mentale ────────────────────────────────────────
-    m_stress     UUID := gen_random_uuid();
-    m_burnout    UUID := gen_random_uuid();
-    m_anxiete    UUID := gen_random_uuid();
-    m_tcc        UUID := gen_random_uuid();
+    m_stress         UUID := gen_random_uuid();
+    m_burnout        UUID := gen_random_uuid();
+    m_anxiete        UUID := gen_random_uuid();
+    m_tcc            UUID := gen_random_uuid();
+    m_stress_travail UUID := gen_random_uuid();
 
     -- ── Sous-menus → Respiration ──────────────────────────────────────────
     m_resp_bases UUID := gen_random_uuid();
@@ -78,6 +85,7 @@ DECLARE
     m_alim       UUID := gen_random_uuid();
     m_hydrat     UUID := gen_random_uuid();
     m_sport_m    UUID := gen_random_uuid();
+    m_immuno_m   UUID := gen_random_uuid();
 
     -- ── Sous-menus → À propos ─────────────────────────────────────────────
     m_mission    UUID := gen_random_uuid();
@@ -107,9 +115,12 @@ DECLARE
     qq UUID;
 
 BEGIN
-    SELECT id INTO v_admin_id FROM administrators WHERE email = 'admin@cesizen.fr' LIMIT 1;
+    SELECT id, email, password_hash, first_name, last_name, member_since, creation_time
+    INTO v_admin_id, v_admin_email, v_admin_hash, v_admin_first_name, v_admin_last_name, v_admin_member_since, v_admin_creation_time
+    FROM administrators LIMIT 1;
+
     IF v_admin_id IS NULL THEN
-        RAISE EXCEPTION 'Admin introuvable. Démarrez l''API au moins une fois d''abord.';
+        RAISE EXCEPTION 'Aucun administrateur trouvé. Démarrez l''API au moins une fois d''abord.';
     END IF;
 
     -- =========================================================
@@ -125,6 +136,12 @@ BEGIN
         navigation_menu,
         configurations
     RESTART IDENTITY CASCADE;
+
+    -- =========================================================
+    -- RESTORE ADMIN (wiped by cascade)
+    -- =========================================================
+    INSERT INTO administrators (id, email, password_hash, first_name, last_name, member_since, account_activated, creation_time, "FailedLoginAttempts")
+    VALUES (v_admin_id, v_admin_email, v_admin_hash, v_admin_first_name, v_admin_last_name, v_admin_member_since, true, v_admin_creation_time, 0);
 
     -- =========================================================
     -- TAGS
@@ -163,7 +180,7 @@ BEGIN
 </ul>
 <h2>Que faire ?</h2>
 <p>Identifier ses stresseurs, pratiquer la respiration guidée et maintenir des routines de récupération (sommeil, activité physique, pleine conscience).</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_stress_burnout, 'Reconnaître le burnout',
     'Comment identifier l''épuisement professionnel avant qu''il ne soit trop tard.',
@@ -184,7 +201,7 @@ BEGIN
 </ol>
 <h2>Prévention</h2>
 <p>Poser des limites claires, prendre des pauses régulières, pratiquer la cohérence cardiaque et ne pas hésiter à consulter un professionnel.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_stress_travail, 'Gérer le stress au travail',
     'Stratégies concrètes pour réduire la pression professionnelle au quotidien.',
@@ -201,7 +218,7 @@ BEGIN
   <li>Bloquez des plages de travail profond sans interruption.</li>
   <li>Finissez la journée avec un rituel de déconnexion.</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- Santé mentale — Anxiété
     INSERT INTO information_pages (id, title, description, content, content_type, currently_editing, status, active, creation_time, id_administrators) VALUES
@@ -227,7 +244,7 @@ BEGIN
   <li>Ne pas hyperventiler.</li>
   <li>Se rappeler : une crise d''anxiété est inconfortable mais pas dangereuse.</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_anxiete_tcc, 'La thérapie cognitive et comportementale (TCC)',
     'Comment la TCC aide à restructurer les pensées anxieuses.',
@@ -243,7 +260,7 @@ BEGIN
 </ol>
 <h2>Quand consulter ?</h2>
 <p>Si l''anxiété impacte significativement votre vie quotidienne, un suivi TCC est recommandé. Une série de 8 à 20 séances est généralement suffisante.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- Respiration
     INSERT INTO information_pages (id, title, description, content, content_type, currently_editing, status, active, creation_time, id_administrators) VALUES
@@ -264,7 +281,7 @@ BEGIN
   <li>Expirez lentement par la bouche. L''expiration doit être plus longue que l''inspiration.</li>
 </ol>
 <p>5 minutes de respiration abdominale abaissent la fréquence cardiaque et réduisent le cortisol.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_resp_coh, 'La cohérence cardiaque',
     'La technique de respiration la plus étudiée pour réduire le stress.',
@@ -283,7 +300,7 @@ BEGIN
   <li>Amélioration de la qualité du sommeil.</li>
   <li>Renforcement immunitaire.</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_resp_crise, 'Respiration en situation de crise',
     'Techniques de respiration rapides pour les moments d''urgence émotionnelle.',
@@ -295,7 +312,7 @@ BEGIN
 <p>Prenez une grande inspiration, puis une petite inspiration supplémentaire, puis expirez lentement tout l''air. Scientifiquement validé par Stanford comme le moyen le plus rapide de réduire le stress aigu.</p>
 <h2>Technique 3 : Respiration carrée</h2>
 <p>4s inspiration → 4s rétention → 4s expiration → 4s rétention. Utilisée par les Navy SEALs pour rester calmes sous pression extrême.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_resp_478, 'La respiration 4-7-8',
     'La méthode 4-7-8 du Dr Andrew Weil contre l''anxiété et pour un meilleur endormissement.',
@@ -313,7 +330,7 @@ BEGIN
   <li>Avant une situation stressante (examen, prise de parole)</li>
 </ul>
 <p>Commencez par 4 cycles maximum, puis augmentez progressivement jusqu''à 8 cycles.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_resp_box, 'Box Breathing : la technique des forces spéciales',
     'Utilisé par les Navy SEALs pour maintenir leur calme dans les situations à haute pression.',
@@ -334,7 +351,7 @@ BEGIN
   <li>Lors d''une situation de crise</li>
   <li>Pour se reconcentrer après une interruption</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- Sommeil
     INSERT INTO information_pages (id, title, description, content, content_type, currently_editing, status, active, creation_time, id_administrators) VALUES
@@ -357,7 +374,7 @@ BEGIN
   <li>Lumière bleue dans l''heure précédant le coucher.</li>
   <li>Repas copieux tardifs.</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_sommeil_stress, 'Stress et sommeil : le cercle vicieux',
     'Comment le stress perturbe le sommeil et comment briser ce cycle.',
@@ -375,7 +392,7 @@ BEGIN
   <li>30 min avant : lecture légère ou étirements doux.</li>
   <li>15 min avant : cohérence cardiaque (5 min) + scan corporel.</li>
 </ol>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- Pleine conscience
     INSERT INTO information_pages (id, title, description, content, content_type, currently_editing, status, active, creation_time, id_administrators) VALUES
@@ -398,7 +415,7 @@ BEGIN
   <li>Quand l''esprit s''égare, ramenez-le doucement — sans jugement.</li>
   <li>Répétez pendant 5 minutes.</li>
 </ol>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_mind_quotidien, 'Pleine conscience au quotidien',
     'Intégrer le mindfulness dans les activités de tous les jours.',
@@ -411,7 +428,7 @@ BEGIN
 <p>Portez attention à chaque pas, au contact du sol, aux sons autour de vous. 10 minutes suffisent à recentrer l''esprit.</p>
 <h3>La pause de 3 minutes</h3>
 <p>3 fois par jour : 1 min pour observer vos pensées, 1 min sur la respiration, 1 min sur votre corps entier.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- Énergie & Nutrition
     INSERT INTO information_pages (id, title, description, content, content_type, currently_editing, status, active, creation_time, id_administrators) VALUES
@@ -432,7 +449,7 @@ BEGIN
   <li>Caféine excessive (amplifie la réponse au stress).</li>
   <li>Alcool (perturbateur du sommeil et anxiogène à long terme).</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_energie_hydrat, 'Hydratation et concentration',
     'L''impact souvent sous-estimé de l''hydratation sur les capacités mentales.',
@@ -446,7 +463,7 @@ BEGIN
   <li>Avoir toujours une bouteille visible sur son bureau.</li>
   <li>Associer l''hydratation à des moments clés (avant chaque réunion).</li>
 </ul>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_sport, 'Respiration et performance sportive',
     'Optimisez vos performances sportives grâce à des techniques de respiration adaptées.',
@@ -461,7 +478,7 @@ BEGIN
 </ul>
 <h3>Après l''effort : récupération</h3>
 <p>Une session de 5 minutes de cohérence cardiaque dans les 30 minutes suivant l''effort accélère le retour à la normale de la fréquence cardiaque.</p>',
-    'html', false, 'Published', true, NOW(), v_admin_id),
+    'html', false, 'published', true, NOW(), v_admin_id),
 
     (p_immuno, 'Respiration et système immunitaire',
     'Des recherches récentes montrent que la respiration consciente peut renforcer notre immunité.',
@@ -475,7 +492,7 @@ BEGIN
   <li>En période de stress intense, augmentez la durée de vos sessions à 10 minutes.</li>
 </ul>
 <p><em>Note : ces pratiques sont complémentaires aux soins médicaux et ne les remplacent pas.</em></p>',
-    'html', false, 'Published', true, NOW(), v_admin_id);
+    'html', false, 'published', true, NOW(), v_admin_id);
 
     -- =========================================================
     -- TAGGED — relations pages <-> tags
@@ -519,7 +536,7 @@ BEGIN
 
     -- Sous-menus → Santé mentale
     INSERT INTO navigation_menu (id, parent_id, position, label, url, currently_editing, creation_time) VALUES
-        (m_stress,   m_sante_h, 1, 'Comprendre le stress',  'cesizen://info-page/' || p_stress_comprendre::text, false, NOW()),
+        (m_stress,   m_sante_h, 1, 'Comprendre le stress',  'cesizen://info-page/883642a9-74a7-43ed-aea4-380091685a29' , false, NOW()),
         (m_burnout,  m_sante_h, 2, 'Reconnaître le burnout','cesizen://info-page/' || p_stress_burnout::text,    false, NOW()),
         (m_anxiete,  m_sante_h, 3, 'Gérer son anxiété',     'cesizen://info-page/' || p_anxiete_crises::text,   false, NOW()),
         (m_tcc,      m_sante_h, 4, 'Thérapie cognitive TCC','cesizen://info-page/' || p_anxiete_tcc::text,      false, NOW())
@@ -600,42 +617,42 @@ BEGIN
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Comment décrivez-vous votre niveau de stress en ce moment ?', 1, NOW(), q1);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Très stressé(e), débordé(e)',        1, 'exhalation',     'ADD', '3', NOW(), qq),
-        (gen_random_uuid(), 'Modérément stressé(e)',              2, 'exhalation',     'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Légèrement stressé(e), mais ça va', 3, 'exhalation',     'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Calme et serein(e)',                 4, 'exhalation',     'SET', '4', NOW(), qq);
+        (gen_random_uuid(), 'Très stressé(e), débordé(e)',        1, 'exhalation',     'add', '3', NOW(), qq),
+        (gen_random_uuid(), 'Modérément stressé(e)',              2, 'exhalation',     'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Légèrement stressé(e), mais ça va', 3, 'exhalation',     'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Calme et serein(e)',                 4, 'exhalation',     'set', '4', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Depuis combien de temps ressentez-vous cela ?', 2, NOW(), q1);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Plus d''une semaine (stress chronique)', 1, 'durationminutes', 'ADD', '5', NOW(), qq),
-        (gen_random_uuid(), 'Quelques jours',                         2, 'durationminutes', 'ADD', '3', NOW(), qq),
-        (gen_random_uuid(), 'Seulement aujourd''hui',                 3, 'durationminutes', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'C''est ponctuel, pas d''habitude',       4, 'durationminutes', 'SET', '5', NOW(), qq);
+        (gen_random_uuid(), 'Plus d''une semaine (stress chronique)', 1, 'durationminutes', 'add', '5', NOW(), qq),
+        (gen_random_uuid(), 'Quelques jours',                         2, 'durationminutes', 'add', '3', NOW(), qq),
+        (gen_random_uuid(), 'Seulement aujourd''hui',                 3, 'durationminutes', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'C''est ponctuel, pas d''habitude',       4, 'durationminutes', 'set', '5', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Ressentez-vous des tensions physiques (nuque, épaules, mâchoire) ?', 3, NOW(), q1);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, très prononcées',  1, 'retention1', 'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Oui, modérées',          2, 'retention1', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Légères',                3, 'retention1', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Non, aucune tension',    4, 'retention1', 'SET', '2', NOW(), qq);
+        (gen_random_uuid(), 'Oui, très prononcées',  1, 'retention1', 'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Oui, modérées',          2, 'retention1', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Légères',                3, 'retention1', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Non, aucune tension',    4, 'retention1', 'set', '2', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Quel est votre objectif pour cette séance ?', 4, NOW(), q1);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Me détendre et relâcher la pression', 1, 'objective', 'SET', 'Relaxation', NOW(), qq),
-        (gen_random_uuid(), 'Retrouver ma concentration',          2, 'objective', 'SET', 'Focus',      NOW(), qq),
-        (gen_random_uuid(), 'Recharger mes batteries',             3, 'objective', 'SET', 'Énergie',    NOW(), qq),
-        (gen_random_uuid(), 'Préparer un meilleur sommeil',        4, 'objective', 'SET', 'Sommeil',    NOW(), qq);
+        (gen_random_uuid(), 'Me détendre et relâcher la pression', 1, 'objective', 'set', 'Relaxation', NOW(), qq),
+        (gen_random_uuid(), 'Retrouver ma concentration',          2, 'objective', 'set', 'Focus',      NOW(), qq),
+        (gen_random_uuid(), 'Recharger mes batteries',             3, 'objective', 'set', 'Énergie',    NOW(), qq),
+        (gen_random_uuid(), 'Préparer un meilleur sommeil',        4, 'objective', 'set', 'Sommeil',    NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Comment préférez-vous être guidé(e) ?', 5, NOW(), q1);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Visuellement (animation, barre)',  1, 'guidancetype', 'SET', 'Visual',   NOW(), qq),
-        (gen_random_uuid(), 'Par le son (musique, bip)',        2, 'guidancetype', 'SET', 'Audio',    NOW(), qq),
-        (gen_random_uuid(), 'Par vibrations/haptique',          3, 'guidancetype', 'SET', 'Haptique', NOW(), qq),
-        (gen_random_uuid(), 'Pas de guidage, je gère seul(e)', 4, 'guidancetype', 'SET', 'Aucun',    NOW(), qq);
+        (gen_random_uuid(), 'Visuellement (animation, barre)',  1, 'guidancetype', 'set', 'Visual',   NOW(), qq),
+        (gen_random_uuid(), 'Par le son (musique, bip)',        2, 'guidancetype', 'set', 'Audio',    NOW(), qq),
+        (gen_random_uuid(), 'Par vibrations/haptique',          3, 'guidancetype', 'set', 'Haptique', NOW(), qq),
+        (gen_random_uuid(), 'Pas de guidage, je gère seul(e)', 4, 'guidancetype', 'set', 'Aucun',    NOW(), qq);
     END;
 
     -- ─────────────────────────────────────────────────────────
@@ -646,34 +663,34 @@ BEGIN
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Quel est votre principal problème de sommeil ?', 1, NOW(), q2);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'J''ai du mal à m''endormir (ruminations)', 1, 'exhalation',     'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Je me réveille la nuit sans raison',        2, 'retention2',     'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Je me réveille trop tôt le matin',          3, 'durationminutes','ADD', '5', NOW(), qq),
-        (gen_random_uuid(), 'Mon sommeil n''est pas réparateur',         4, 'durationminutes','ADD', '3', NOW(), qq);
+        (gen_random_uuid(), 'J''ai du mal à m''endormir (ruminations)', 1, 'exhalation',     'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Je me réveille la nuit sans raison',        2, 'retention2',     'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Je me réveille trop tôt le matin',          3, 'durationminutes','add', '5', NOW(), qq),
+        (gen_random_uuid(), 'Mon sommeil n''est pas réparateur',         4, 'durationminutes','add', '3', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Votre esprit a-t-il tendance à s''emballer le soir ?', 2, NOW(), q2);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, pensées incessantes',                    1, 'exhalation', 'ADD', '3', NOW(), qq),
-        (gen_random_uuid(), 'Parfois, quand je suis stressé(e)',           2, 'exhalation', 'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Rarement',                                    3, 'exhalation', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Non, je m''endors facilement d''habitude',   4, 'exhalation', 'SET', '5', NOW(), qq);
+        (gen_random_uuid(), 'Oui, pensées incessantes',                    1, 'exhalation', 'add', '3', NOW(), qq),
+        (gen_random_uuid(), 'Parfois, quand je suis stressé(e)',           2, 'exhalation', 'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Rarement',                                    3, 'exhalation', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Non, je m''endors facilement d''habitude',   4, 'exhalation', 'set', '5', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Quelle durée de séance vous convient avant de dormir ?', 3, NOW(), q2);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), '5 minutes maximum',    1, 'durationminutes', 'SET', '5',  NOW(), qq),
-        (gen_random_uuid(), '10 minutes',           2, 'durationminutes', 'SET', '10', NOW(), qq),
-        (gen_random_uuid(), '15 minutes',           3, 'durationminutes', 'SET', '15', NOW(), qq),
-        (gen_random_uuid(), '20 minutes ou plus',   4, 'durationminutes', 'SET', '20', NOW(), qq);
+        (gen_random_uuid(), '5 minutes maximum',    1, 'durationminutes', 'set', '5',  NOW(), qq),
+        (gen_random_uuid(), '10 minutes',           2, 'durationminutes', 'set', '10', NOW(), qq),
+        (gen_random_uuid(), '15 minutes',           3, 'durationminutes', 'set', '15', NOW(), qq),
+        (gen_random_uuid(), '20 minutes ou plus',   4, 'durationminutes', 'set', '20', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Préférez-vous la lumière éteinte pendant l''exercice ?', 4, NOW(), q2);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, obscurité totale, guidage sonore',   1, 'guidancetype', 'SET', 'Audio',    NOW(), qq),
-        (gen_random_uuid(), 'Légère veilleuse, je regarde l''écran',   2, 'guidancetype', 'SET', 'Visual',   NOW(), qq),
-        (gen_random_uuid(), 'Je ferme les yeux, vibrations suffisent', 3, 'guidancetype', 'SET', 'Haptique', NOW(), qq),
-        (gen_random_uuid(), 'Je n''utilise pas d''écran le soir',      4, 'guidancetype', 'SET', 'Audio',    NOW(), qq);
+        (gen_random_uuid(), 'Oui, obscurité totale, guidage sonore',   1, 'guidancetype', 'set', 'Audio',    NOW(), qq),
+        (gen_random_uuid(), 'Légère veilleuse, je regarde l''écran',   2, 'guidancetype', 'set', 'Visual',   NOW(), qq),
+        (gen_random_uuid(), 'Je ferme les yeux, vibrations suffisent', 3, 'guidancetype', 'set', 'Haptique', NOW(), qq),
+        (gen_random_uuid(), 'Je n''utilise pas d''écran le soir',      4, 'guidancetype', 'set', 'Audio',    NOW(), qq);
     END;
 
     -- ─────────────────────────────────────────────────────────
@@ -684,34 +701,34 @@ BEGIN
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Comment décrivez-vous votre niveau d''énergie en ce moment ?', 1, NOW(), q3);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Épuisé(e), j''ai besoin d''un coup de fouet',1, 'inhalation', 'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Un peu fatigué(e)',                           2, 'inhalation', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Énergie normale, je veux optimiser',          3, 'inhalation', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Énergique, je veux rester dans cet état',    4, 'inhalation', 'SET', '3', NOW(), qq);
+        (gen_random_uuid(), 'Épuisé(e), j''ai besoin d''un coup de fouet',1, 'inhalation', 'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Un peu fatigué(e)',                           2, 'inhalation', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Énergie normale, je veux optimiser',          3, 'inhalation', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Énergique, je veux rester dans cet état',    4, 'inhalation', 'set', '3', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Dans quel contexte faites-vous cet exercice ?', 2, NOW(), q3);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Avant une tâche demandant de la concentration', 1, 'objective', 'SET', 'Focus',      NOW(), qq),
-        (gen_random_uuid(), 'Avant un effort physique',                       2, 'objective', 'SET', 'Énergie',    NOW(), qq),
-        (gen_random_uuid(), 'Pour rester alerte en fin de journée',          3, 'objective', 'SET', 'Énergie',    NOW(), qq),
-        (gen_random_uuid(), 'En pause pour me ressourcer',                   4, 'objective', 'SET', 'Relaxation', NOW(), qq);
+        (gen_random_uuid(), 'Avant une tâche demandant de la concentration', 1, 'objective', 'set', 'Focus',      NOW(), qq),
+        (gen_random_uuid(), 'Avant un effort physique',                       2, 'objective', 'set', 'Énergie',    NOW(), qq),
+        (gen_random_uuid(), 'Pour rester alerte en fin de journée',          3, 'objective', 'set', 'Énergie',    NOW(), qq),
+        (gen_random_uuid(), 'En pause pour me ressourcer',                   4, 'objective', 'set', 'Relaxation', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Combien de temps pouvez-vous consacrer à cet exercice ?', 3, NOW(), q3);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), '2-3 minutes (pause éclair)',    1, 'durationminutes', 'SET', '3',  NOW(), qq),
-        (gen_random_uuid(), '5 minutes',                    2, 'durationminutes', 'SET', '5',  NOW(), qq),
-        (gen_random_uuid(), '10 minutes',                   3, 'durationminutes', 'SET', '10', NOW(), qq),
-        (gen_random_uuid(), 'Pas de contrainte de temps',   4, 'durationminutes', 'SET', '8',  NOW(), qq);
+        (gen_random_uuid(), '2-3 minutes (pause éclair)',    1, 'durationminutes', 'set', '3',  NOW(), qq),
+        (gen_random_uuid(), '5 minutes',                    2, 'durationminutes', 'set', '5',  NOW(), qq),
+        (gen_random_uuid(), '10 minutes',                   3, 'durationminutes', 'set', '10', NOW(), qq),
+        (gen_random_uuid(), 'Pas de contrainte de temps',   4, 'durationminutes', 'set', '8',  NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Avez-vous de l''expérience avec les exercices de respiration ?', 4, NOW(), q3);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Débutant(e) complet(e)',                   1, 'difficulty', 'SET', '1', NOW(), qq),
-        (gen_random_uuid(), 'Quelques séances derrière moi',            2, 'difficulty', 'SET', '2', NOW(), qq),
-        (gen_random_uuid(), 'Pratique régulière (plusieurs semaines)',  3, 'difficulty', 'SET', '3', NOW(), qq),
-        (gen_random_uuid(), 'Pratique avancée',                         4, 'difficulty', 'SET', '4', NOW(), qq);
+        (gen_random_uuid(), 'Débutant(e) complet(e)',                   1, 'difficulty', 'set', '1', NOW(), qq),
+        (gen_random_uuid(), 'Quelques séances derrière moi',            2, 'difficulty', 'set', '2', NOW(), qq),
+        (gen_random_uuid(), 'Pratique régulière (plusieurs semaines)',  3, 'difficulty', 'set', '3', NOW(), qq),
+        (gen_random_uuid(), 'Pratique avancée',                         4, 'difficulty', 'set', '4', NOW(), qq);
     END;
 
     -- ─────────────────────────────────────────────────────────
@@ -722,42 +739,42 @@ BEGIN
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'À quel point vous sentez-vous anxieux/se en ce moment ?', 1, NOW(), q4);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Très fortement (palpitations, oppression)', 1, 'exhalation', 'SET', '8', NOW(), qq),
-        (gen_random_uuid(), 'Modérément (agitation intérieure)',          2, 'exhalation', 'SET', '6', NOW(), qq),
-        (gen_random_uuid(), 'Légèrement (nervosité)',                     3, 'exhalation', 'SET', '5', NOW(), qq),
-        (gen_random_uuid(), 'Peu, je veux prévenir l''anxiété',          4, 'exhalation', 'SET', '4', NOW(), qq);
+        (gen_random_uuid(), 'Très fortement (palpitations, oppression)', 1, 'exhalation', 'set', '8', NOW(), qq),
+        (gen_random_uuid(), 'Modérément (agitation intérieure)',          2, 'exhalation', 'set', '6', NOW(), qq),
+        (gen_random_uuid(), 'Légèrement (nervosité)',                     3, 'exhalation', 'set', '5', NOW(), qq),
+        (gen_random_uuid(), 'Peu, je veux prévenir l''anxiété',          4, 'exhalation', 'set', '4', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Avez-vous des sensations physiques (souffle court, gorge serrée) ?', 2, NOW(), q4);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, très prononcées', 1, 'inhalation', 'SET', '3', NOW(), qq),
-        (gen_random_uuid(), 'Oui, modérées',        2, 'inhalation', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Légères',              3, 'inhalation', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Non, plutôt mental',   4, 'inhalation', 'SET', '5', NOW(), qq);
+        (gen_random_uuid(), 'Oui, très prononcées', 1, 'inhalation', 'set', '3', NOW(), qq),
+        (gen_random_uuid(), 'Oui, modérées',        2, 'inhalation', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Légères',              3, 'inhalation', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Non, plutôt mental',   4, 'inhalation', 'set', '5', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Avez-vous tendance à hyperventiler sous stress ?', 3, NOW(), q4);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, je respire très vite', 1, 'retention1', 'SET', '1', NOW(), qq),
-        (gen_random_uuid(), 'Parfois',                   2, 'retention1', 'SET', '2', NOW(), qq),
-        (gen_random_uuid(), 'Rarement',                  3, 'retention1', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Non, jamais',               4, 'retention1', 'SET', '4', NOW(), qq);
+        (gen_random_uuid(), 'Oui, je respire très vite', 1, 'retention1', 'set', '1', NOW(), qq),
+        (gen_random_uuid(), 'Parfois',                   2, 'retention1', 'set', '2', NOW(), qq),
+        (gen_random_uuid(), 'Rarement',                  3, 'retention1', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Non, jamais',               4, 'retention1', 'set', '4', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Quelle durée de séance vous semble accessible maintenant ?', 4, NOW(), q4);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), '1-2 minutes seulement',          1, 'durationminutes', 'SET', '2',  NOW(), qq),
-        (gen_random_uuid(), '5 minutes',                      2, 'durationminutes', 'SET', '5',  NOW(), qq),
-        (gen_random_uuid(), '10 minutes',                     3, 'durationminutes', 'SET', '10', NOW(), qq),
-        (gen_random_uuid(), 'Pas de limite, je veux que ça passe', 4, 'durationminutes', 'SET', '15', NOW(), qq);
+        (gen_random_uuid(), '1-2 minutes seulement',          1, 'durationminutes', 'set', '2',  NOW(), qq),
+        (gen_random_uuid(), '5 minutes',                      2, 'durationminutes', 'set', '5',  NOW(), qq),
+        (gen_random_uuid(), '10 minutes',                     3, 'durationminutes', 'set', '10', NOW(), qq),
+        (gen_random_uuid(), 'Pas de limite, je veux que ça passe', 4, 'durationminutes', 'set', '15', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Êtes-vous dans un endroit où vous pouvez sortir votre téléphone ?', 5, NOW(), q4);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, seul(e) dans un endroit calme',      1, 'guidancetype', 'SET', 'Visual',   NOW(), qq),
-        (gen_random_uuid(), 'Dans un lieu public (transports, couloir)',2, 'guidancetype', 'SET', 'Haptique', NOW(), qq),
-        (gen_random_uuid(), 'Au bureau avec des collègues',             3, 'guidancetype', 'SET', 'Visual',   NOW(), qq),
-        (gen_random_uuid(), 'Je ne peux pas sortir mon téléphone',     4, 'guidancetype', 'SET', 'Aucun',    NOW(), qq);
+        (gen_random_uuid(), 'Oui, seul(e) dans un endroit calme',      1, 'guidancetype', 'set', 'Visual',   NOW(), qq),
+        (gen_random_uuid(), 'Dans un lieu public (transports, couloir)',2, 'guidancetype', 'set', 'Haptique', NOW(), qq),
+        (gen_random_uuid(), 'Au bureau avec des collègues',             3, 'guidancetype', 'set', 'Visual',   NOW(), qq),
+        (gen_random_uuid(), 'Je ne peux pas sortir mon téléphone',     4, 'guidancetype', 'set', 'Aucun',    NOW(), qq);
     END;
 
     -- ─────────────────────────────────────────────────────────
@@ -768,34 +785,34 @@ BEGIN
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Quel type d''effort venez-vous de réaliser ?', 1, NOW(), q5);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Effort intense (HIIT, sport de combat, sprint)', 1, 'inhalation', 'ADD', '2', NOW(), qq),
-        (gen_random_uuid(), 'Endurance modérée (course, vélo, natation)',      2, 'inhalation', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Entraînement de force (musculation)',             3, 'inhalation', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Activité légère (marche, yoga, stretching)',      4, 'inhalation', 'SET', '4', NOW(), qq);
+        (gen_random_uuid(), 'Effort intense (HIIT, sport de combat, sprint)', 1, 'inhalation', 'add', '2', NOW(), qq),
+        (gen_random_uuid(), 'Endurance modérée (course, vélo, natation)',      2, 'inhalation', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Entraînement de force (musculation)',             3, 'inhalation', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Activité légère (marche, yoga, stretching)',      4, 'inhalation', 'set', '4', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Combien de temps après l''effort pratiquez-vous ?', 2, NOW(), q5);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Immédiatement (< 5 min après l''effort)', 1, 'objective', 'SET', 'Relaxation', NOW(), qq),
-        (gen_random_uuid(), 'Dans les 30 minutes',                     2, 'objective', 'SET', 'Relaxation', NOW(), qq),
-        (gen_random_uuid(), '1 heure après',                           3, 'objective', 'SET', 'Énergie',    NOW(), qq),
-        (gen_random_uuid(), 'Le soir, pour la récupération nocturne',  4, 'objective', 'SET', 'Sommeil',    NOW(), qq);
+        (gen_random_uuid(), 'Immédiatement (< 5 min après l''effort)', 1, 'objective', 'set', 'Relaxation', NOW(), qq),
+        (gen_random_uuid(), 'Dans les 30 minutes',                     2, 'objective', 'set', 'Relaxation', NOW(), qq),
+        (gen_random_uuid(), '1 heure après',                           3, 'objective', 'set', 'Énergie',    NOW(), qq),
+        (gen_random_uuid(), 'Le soir, pour la récupération nocturne',  4, 'objective', 'set', 'Sommeil',    NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Ressentez-vous des tensions musculaires importantes ?', 3, NOW(), q5);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, importantes',          1, 'durationminutes', 'ADD', '5', NOW(), qq),
-        (gen_random_uuid(), 'Oui, légères',              2, 'durationminutes', 'ADD', '3', NOW(), qq),
-        (gen_random_uuid(), 'Non, effort modéré',        3, 'durationminutes', 'SET', '5', NOW(), qq),
-        (gen_random_uuid(), 'Non, exercice très léger',  4, 'durationminutes', 'SET', '5', NOW(), qq);
+        (gen_random_uuid(), 'Oui, importantes',          1, 'durationminutes', 'add', '5', NOW(), qq),
+        (gen_random_uuid(), 'Oui, légères',              2, 'durationminutes', 'add', '3', NOW(), qq),
+        (gen_random_uuid(), 'Non, effort modéré',        3, 'durationminutes', 'set', '5', NOW(), qq),
+        (gen_random_uuid(), 'Non, exercice très léger',  4, 'durationminutes', 'set', '5', NOW(), qq);
 
     qq := gen_random_uuid();
     INSERT INTO questions (id, text, position, creation_time, id_quizz) VALUES (qq, 'Votre fréquence cardiaque est-elle encore élevée ?', 4, NOW(), q5);
     INSERT INTO responses_options (id, label, position, targeted_field, operation, value, creation_time, id_questions) VALUES
-        (gen_random_uuid(), 'Oui, toujours très élevée',              1, 'exhalation', 'ADD', '3', NOW(), qq),
-        (gen_random_uuid(), 'Oui, légèrement au-dessus de la normale',2, 'exhalation', 'ADD', '1', NOW(), qq),
-        (gen_random_uuid(), 'Revenue à la normale',                    3, 'exhalation', 'SET', '4', NOW(), qq),
-        (gen_random_uuid(), 'Je ne sais pas',                          4, 'exhalation', 'SET', '5', NOW(), qq);
+        (gen_random_uuid(), 'Oui, toujours très élevée',              1, 'exhalation', 'add', '3', NOW(), qq),
+        (gen_random_uuid(), 'Oui, légèrement au-dessus de la normale',2, 'exhalation', 'add', '1', NOW(), qq),
+        (gen_random_uuid(), 'Revenue à la normale',                    3, 'exhalation', 'set', '4', NOW(), qq),
+        (gen_random_uuid(), 'Je ne sais pas',                          4, 'exhalation', 'set', '5', NOW(), qq);
     END;
 
     RAISE NOTICE 'Seed CesiZen terminé avec succès.';
