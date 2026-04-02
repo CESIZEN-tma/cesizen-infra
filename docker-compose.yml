@@ -21,9 +21,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  pgbouncer:
+  pg-bouncer:
     image: edoburu/pgbouncer:latest
-    container_name: pgbouncer
+    container_name: pg-bouncer
     ports:
       - "6432:6432"
     env_file: ".env"
@@ -47,7 +47,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-        test: ["CMD-SHELL", "pg_isready -h pgbouncer -p 6432 -U ${DB_USER} -d ${DB_NAME}"]
+        test: ["CMD-SHELL", "pg_isready -h pg-bouncer -p 6432 -U ${DB_USER} -d ${DB_NAME}"]
         interval: 10s
         timeout: 5s
         retries: 5
@@ -68,7 +68,22 @@ services:
       - "${API_PORT}:8080"
     restart: unless-stopped
     depends_on:
-      pgbouncer:
+      pg-bouncer:
+        condition: service_healthy
+  backoffice:
+    container_name: backoffice
+    networks:
+        - cesizen-network
+    build:
+      context: ${BACKOFFICE_BUILD_CONTEXT}
+      dockerfile: ${BACKOFFICE_DOCKERFILE_PATH}
+    env_file:
+      - ${BACKOFFICE_ENV_FILE}
+    ports:
+      - "${BACKOFFICE_PORT}:3000"
+    restart: unless-stopped
+    depends_on:
+      pg-bouncer:
         condition: service_healthy
 volumes:
   postgres-data:
