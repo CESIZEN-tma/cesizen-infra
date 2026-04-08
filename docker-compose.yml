@@ -75,6 +75,9 @@ services:
     build:
       context: ${BACKOFFICE_BUILD_CONTEXT}
       dockerfile: ${BACKOFFICE_DOCKERFILE_PATH}
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_API_KEY: ${VITE_API_KEY}
     env_file:
       - ${BACKOFFICE_ENV_FILE}
     ports:

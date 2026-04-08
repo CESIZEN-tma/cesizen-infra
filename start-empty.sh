@@ -10,14 +10,10 @@ VOLUME_NAME="postgre-db-cesizen_postgres-data"
 echo "Stopping database and dropping volume..."
 docker compose down -v
 
-# export des varaibles d'env avant le runtime poru le build npm
-export $(grep -v '^#' ../cesizen-web/.env | xargs)
 
-echo "Building backoffice image with env..."
-docker compose build --no-cache backoffice
 
 echo "Starting fresh database..."
-docker compose up -d
+docker compose up -d --build
 
 echo "Waiting for PostgreSQL to be ready..."
 until docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; do
