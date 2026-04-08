@@ -22,6 +22,7 @@ BEGIN
     -- TRUNCATE (ordre respectant les FK)
     -- =========================================================
     TRUNCATE TABLE
+        admin_logs,
         responses_options,
         questions,
         quizz,

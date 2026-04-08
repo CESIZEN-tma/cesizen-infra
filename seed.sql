@@ -96,6 +96,9 @@ DECLARE
     m_mentions   UUID := gen_random_uuid();
     m_confidential UUID := gen_random_uuid();
 
+    -- ── 2ème administrateur (demo lineage) ───────────────────────────────
+    v_admin2_id UUID := gen_random_uuid();
+
     -- ── Configurations admin ──────────────────────────────────────────────
     c1 UUID := gen_random_uuid();
     c2 UUID := gen_random_uuid();
@@ -127,6 +130,7 @@ BEGIN
     -- TRUNCATE (ordre respectant les FK)
     -- =========================================================
     TRUNCATE TABLE
+        admin_logs,
         responses_options,
         questions,
         quizz,
@@ -142,6 +146,11 @@ BEGIN
     -- =========================================================
     INSERT INTO administrators (id, email, password_hash, first_name, last_name, member_since, account_activated, creation_time, "FailedLoginAttempts")
     VALUES (v_admin_id, v_admin_email, v_admin_hash, v_admin_first_name, v_admin_last_name, v_admin_member_since, true, v_admin_creation_time, 0);
+
+    -- 2ème administrateur pour la démo du lineage
+    v_admin2_id := gen_random_uuid();
+    INSERT INTO administrators (id, email, password_hash, first_name, last_name, member_since, account_activated, creation_time, "FailedLoginAttempts")
+    VALUES (v_admin2_id, 'marie.martin@cesizen.fr', v_admin_hash, 'Marie', 'Martin', '2025-11-01 09:00:00+00', true, '2025-11-01 09:00:00+00', 0);
 
     -- =========================================================
     -- TAGS
@@ -814,6 +823,86 @@ BEGIN
         (gen_random_uuid(), 'Revenue à la normale',                    3, 'exhalation', 'set', '4', NOW(), qq),
         (gen_random_uuid(), 'Je ne sais pas',                          4, 'exhalation', 'set', '5', NOW(), qq);
     END;
+
+    -- =========================================================
+    -- ADMIN LOGS — historique pour démo du lineage
+    -- =========================================================
+
+    -- ── Lineage 1 : Configuration "Cohérence cardiaque 5-5" (4 events) ──
+    -- Narrative : créée avec inhalation/exhalation=4 et duration=8min,
+    --             puis calibrée en 5/5, durée réduite, enfin renommée.
+    -- État final dans le seed : Inhalation=5, Exhalation=5, Duration=5min,
+    --                           Name='Cohérence cardiaque 5-5'
+    INSERT INTO admin_logs (id, action_code, entity_type, targeted_entity_id, description, creation_time, id_administrator) VALUES
+    (gen_random_uuid(), 'CONFIG_CREATED', 'Configuration', c1,
+     'Created configuration ''Cohérence cardiaque'' [Inhalation=4s, Retention1=0s, Exhalation=4s, Retention2=0s, Duration=8min, Difficulty=1/5, Objective=''Relaxation'', GuidanceType=Visual]',
+     '2025-11-20 09:00:00+00', v_admin_id),
+    (gen_random_uuid(), 'CONFIG_UPDATED', 'Configuration', c1,
+     'Updated configuration ''Cohérence cardiaque'': Inhalation: 4s → 5s, Exhalation: 4s → 5s',
+     '2025-12-02 14:30:00+00', v_admin_id),
+    (gen_random_uuid(), 'CONFIG_UPDATED', 'Configuration', c1,
+     'Updated configuration ''Cohérence cardiaque'': Duration: 8min → 5min',
+     '2025-12-15 10:00:00+00', v_admin2_id),
+    (gen_random_uuid(), 'CONFIG_UPDATED', 'Configuration', c1,
+     'Updated configuration ''Cohérence cardiaque 5-5'': Name: ''Cohérence cardiaque'' → ''Cohérence cardiaque 5-5''',
+     '2026-01-08 11:15:00+00', v_admin2_id);
+
+    -- ── Lineage 2 : InformationPage "Comprendre le stress" (3 events) ───
+    -- Narrative : créée en brouillon, publiée, puis enrichie avec des tags.
+    -- État final dans le seed : status=published, active=true, Tags=[Stress, Bien-être]
+    INSERT INTO admin_logs (id, action_code, entity_type, targeted_entity_id, description, creation_time, id_administrator) VALUES
+    (gen_random_uuid(), 'INFO_PAGE_CREATED', 'InformationPage', p_stress_comprendre,
+     'Created information page ''Comprendre le stress'' [Status=draft, ContentType=html, Active=False, Tags=0]',
+     '2025-11-15 10:00:00+00', v_admin_id),
+    (gen_random_uuid(), 'INFO_PAGE_UPDATED', 'InformationPage', p_stress_comprendre,
+     'Updated information page ''Comprendre le stress'': Active: False → True, Status: draft → published',
+     '2025-11-20 09:30:00+00', v_admin_id),
+    (gen_random_uuid(), 'INFO_PAGE_UPDATED', 'InformationPage', p_stress_comprendre,
+     'Updated information page ''Comprendre le stress'': Tags: 0 → 2',
+     '2025-12-01 16:45:00+00', v_admin2_id);
+
+    -- ── Lineage 3 : Quiz "Évaluation de mon niveau de stress" (3 events) ─
+    -- Narrative : créé sous un nom court avec 3 questions et inactif,
+    --             renommé et activé, puis enrichi à 5 questions.
+    -- État final dans le seed : Nom='Évaluation de mon niveau de stress', active=true, 5 questions
+    INSERT INTO admin_logs (id, action_code, entity_type, targeted_entity_id, description, creation_time, id_administrator) VALUES
+    (gen_random_uuid(), 'QUIZ_CREATED', 'Quiz', q1,
+     'Created quiz ''Évaluation stress'' with 3 questions',
+     '2025-11-10 09:00:00+00', v_admin_id),
+    (gen_random_uuid(), 'QUIZ_UPDATED', 'Quiz', q1,
+     'Updated quiz ''Évaluation de mon niveau de stress'': Name: ''Évaluation stress'' → ''Évaluation de mon niveau de stress'', Active: false → true',
+     '2025-11-18 14:00:00+00', v_admin_id),
+    (gen_random_uuid(), 'QUIZ_UPDATED', 'Quiz', q1,
+     'Replaced full quiz ''Évaluation de mon niveau de stress'': 3 questions → 5 questions',
+     '2025-12-05 11:30:00+00', v_admin2_id);
+
+    -- ── Lineage 4 : Configuration "Anti-stress express 3-0-6-0" (3 events) ─
+    -- Narrative : créée par Marie avec des valeurs génériques, timings affinés
+    --             pour le guidage haptique, durée réduite et nom précisé.
+    -- État final dans le seed : Inhalation=3, Exhalation=6, Duration=3min,
+    --                           GuidanceType=Haptique, Name='Anti-stress express 3-0-6-0'
+    INSERT INTO admin_logs (id, action_code, entity_type, targeted_entity_id, description, creation_time, id_administrator) VALUES
+    (gen_random_uuid(), 'CONFIG_CREATED', 'Configuration', c6,
+     'Created configuration ''Anti-stress'' [Inhalation=4s, Retention1=0s, Exhalation=4s, Retention2=0s, Duration=5min, Difficulty=1/5, Objective=''Relaxation'', GuidanceType=Visual]',
+     '2025-12-01 10:00:00+00', v_admin2_id),
+    (gen_random_uuid(), 'CONFIG_UPDATED', 'Configuration', c6,
+     'Updated configuration ''Anti-stress'': Inhalation: 4s → 3s, Exhalation: 4s → 6s, GuidanceType: Visual → Haptique',
+     '2025-12-10 15:30:00+00', v_admin2_id),
+    (gen_random_uuid(), 'CONFIG_UPDATED', 'Configuration', c6,
+     'Updated configuration ''Anti-stress express 3-0-6-0'': Name: ''Anti-stress'' → ''Anti-stress express 3-0-6-0'', Duration: 5min → 3min',
+     '2026-01-15 09:00:00+00', v_admin_id);
+
+    -- ── Lineage 5 : Administrator "Marie Martin" (2 events) ──────────────
+    -- Narrative : compte créé avec le nom de jeune fille Dupont,
+    --             corrigé après mariage en Martin.
+    -- État final dans le seed : FirstName=Marie, LastName=Martin
+    INSERT INTO admin_logs (id, action_code, entity_type, targeted_entity_id, description, creation_time, id_administrator) VALUES
+    (gen_random_uuid(), 'ADMIN_CREATED', 'Administrator', v_admin2_id,
+     'Created administrator: Marie Dupont <marie.martin@cesizen.fr>',
+     '2025-11-01 09:00:00+00', v_admin_id),
+    (gen_random_uuid(), 'ADMIN_UPDATED', 'Administrator', v_admin2_id,
+     'Updated administrator marie.martin@cesizen.fr: LastName: ''Dupont'' → ''Martin''',
+     '2026-02-10 14:00:00+00', v_admin_id);
 
     RAISE NOTICE 'Seed CesiZen terminé avec succès.';
 END $$;
