@@ -1,4 +1,4 @@
-FROM postgres:16-alpine
+FROM postgres:18-alpine
 
 # Set environment variables (can be overridden at runtime)
 ENV POSTGRES_USER=myuser
