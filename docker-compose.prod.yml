@@ -1,0 +1,88 @@
+services:
+  postgres:
+    networks:
+      - cesizen-prod-network
+    build: .
+    container_name: postgres-db-prod
+    env_file: ".env.prod"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pg-bouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pg-bouncer-prod
+    ports:
+      - "6432:6432"
+    env_file: ".env.prod"
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      POOL_MODE: ${POOL_MODE:-transaction}
+      MAX_CLIENT_CONN: ${MAX_CLIENT_CONN:-100}
+      DEFAULT_POOL_SIZE: ${DEFAULT_POOL_SIZE:-20}
+      MIN_POOL_SIZE: ${MIN_POOL_SIZE:-5}
+      RESERVE_POOL_SIZE: ${RESERVE_POOL_SIZE:-5}
+      LISTEN_ADDRESS: ${LISTEN_ADDRESS:-*}
+      LISTEN_PORT: ${LISTEN_PORT:-6432}
+      AUTH_TYPE: ${AUTH_TYPE:-scram-sha-256}
+    networks:
+      - cesizen-prod-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h pg-bouncer -p 6432 -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    container_name: api-prod
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/cesizen-api:prod
+    networks:
+      - cesizen-prod-network
+    env_file:
+      - .env.prod
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "5000:8080"
+    restart: always
+    depends_on:
+      pg-bouncer:
+        condition: service_healthy
+
+  backoffice:
+    container_name: backoffice-prod
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/cesizen-web:prod
+    networks:
+      - cesizen-prod-network
+    ports:
+      - "3000:3000"
+    restart: always
+    depends_on:
+      pg-bouncer:
+        condition: service_healthy
+
+volumes:
+  postgres-data-prod:
+    driver: local
+
+networks:
+  cesizen-prod-network:
+    driver: bridge
